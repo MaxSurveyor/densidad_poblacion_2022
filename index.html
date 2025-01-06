@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet-search.css">
+        <link rel="stylesheet" href="css/filter.css">
+<link rel="stylesheet" href="css/nouislider.min.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title>Censo 2022 - Densidad de Población</title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet-search.js"></script>
+        <script src="js/tailDT.js"></script>
+<script src="js/nouislider.min.js"></script>
+<script src="js/wNumb.js"></script>
+        <script src="data/Densidadhabkm2_1.js"></script>
+        <script src="data/Variacincon2010_2.js"></script>
+        <script src="data/LmiteInterprovincial_3.js"></script>
+        <script>
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:12, minZoom:1
+        }).fitBounds([[-56.533575414706256,-104.92771531370563],[-19.288257179548097,-24.96278398858681]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // add class to format popup if it contains media
+		function addClassToPopupIfMedia(content, popup) {
+			var tempDiv = document.createElement('div');
+			tempDiv.innerHTML = content;
+			if (tempDiv.querySelector('td img')) {
+				popup._contentNode.classList.add('media');
+					// Delay to force the redraw
+					setTimeout(function() {
+						popup.update();
+					}, 10);
+			} else {
+				popup._contentNode.classList.remove('media');
+			}
+		}
+        var title = new L.Control({'position':'topright'});
+        title.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        };
+        title.update = function () {
+            this._div.innerHTML = '<h2>Censo 2022 - Densidad de Población</h2>';
+        };
+        title.addTo(map);
+        var abstract = new L.Control({'position':'bottomright'});
+        abstract.onAdd = function (map) {
+            this._div = L.DomUtil.create('div',
+            'leaflet-control abstract');
+            this._div.id = 'abstract'
+                this._div.setAttribute("onmouseenter", "abstract.show()");
+                this._div.setAttribute("onmouseleave", "abstract.hide()");
+                this.hide();
+                return this._div;
+            };
+            abstract.hide = function () {
+                this._div.classList.remove("abstractUncollapsed");
+                this._div.classList.add("abstract");
+                this._div.innerHTML = 'i'
+            }
+            abstract.show = function () {
+                this._div.classList.remove("abstract");
+                this._div.classList.add("abstractUncollapsed");
+                this._div.innerHTML = 'Este proyecto ha sido desarrollado utilizando datos obtenidos del INDEC y el Geoportal Estadístico del INDEC, bajo la licencia Creative Commons.<br />Nota sobre la capa "Variación con 2010":<br />La fuente de datos no incluye información sobre los partidos de Lezama ni sobre el departamento Tolhuin, que fue creado en 2017. Para el cálculo de la variación relativa, la población de Tolhuin se ha sumado a la de Río Grande.';
+        };
+        abstract.addTo(map);
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+            map.setMaxBounds(map.getBounds());
+        }
+        map.createPane('pane_DarkMatternolabels_0');
+        map.getPane('pane_DarkMatternolabels_0').style.zIndex = 400;
+        var layer_DarkMatternolabels_0 = L.tileLayer('https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png', {
+            pane: 'pane_DarkMatternolabels_0',
+            opacity: 1.0,
+            attribution: '<a href="https://cartodb.com/basemaps/">Map tiles by CartoDB, under CC BY 3.0. Data by OpenStreetMap, under ODbL.</a>',
+            minZoom: 1,
+            maxZoom: 12,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_DarkMatternolabels_0;
+        map.addLayer(layer_DarkMatternolabels_0);
+        function pop_Densidadhabkm2_1(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Departamento:</th>\
+                        <td>' + (feature.properties['dept-juris'] !== null ? autolinker.link(feature.properties['dept-juris'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Población:</th>\
+                        <td>' + (feature.properties['Poblacion'] !== null ? autolinker.link(feature.properties['Poblacion'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Densidad hab/km2:</th>\
+                        <td>' + (feature.properties['Densidad hab/km2'] !== null ? autolinker.link(feature.properties['Densidad hab/km2'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Densidadhabkm2_1_0(feature) {
+            if (feature.properties['Densidad hab/km2'] >= 0.000000 && feature.properties['Densidad hab/km2'] <= 1.500000 ) {
+                return {
+                pane: 'pane_Densidadhabkm2_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,212,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Densidad hab/km2'] >= 1.500000 && feature.properties['Densidad hab/km2'] <= 4.000000 ) {
+                return {
+                pane: 'pane_Densidadhabkm2_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(254,225,156,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Densidad hab/km2'] >= 4.000000 && feature.properties['Densidad hab/km2'] <= 10.000000 ) {
+                return {
+                pane: 'pane_Densidadhabkm2_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(254,179,81,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Densidad hab/km2'] >= 10.000000 && feature.properties['Densidad hab/km2'] <= 20.000000 ) {
+                return {
+                pane: 'pane_Densidadhabkm2_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(239,130,30,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Densidad hab/km2'] >= 20.000000 && feature.properties['Densidad hab/km2'] <= 100.000000 ) {
+                return {
+                pane: 'pane_Densidadhabkm2_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(204,86,12,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Densidad hab/km2'] >= 100.000000 && feature.properties['Densidad hab/km2'] <= 30662.500000 ) {
+                return {
+                pane: 'pane_Densidadhabkm2_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(153,52,4,1.0)',
+                interactive: true,
+            }
+            }
+        }
+        map.createPane('pane_Densidadhabkm2_1');
+        map.getPane('pane_Densidadhabkm2_1').style.zIndex = 401;
+        map.getPane('pane_Densidadhabkm2_1').style['mix-blend-mode'] = 'normal';
+        var layer_Densidadhabkm2_1 = new L.geoJson(json_Densidadhabkm2_1, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Densidadhabkm2_1',
+            layerName: 'layer_Densidadhabkm2_1',
+            pane: 'pane_Densidadhabkm2_1',
+            onEachFeature: pop_Densidadhabkm2_1,
+            style: style_Densidadhabkm2_1_0,
+        });
+        bounds_group.addLayer(layer_Densidadhabkm2_1);
+        map.addLayer(layer_Densidadhabkm2_1);
+        function pop_Variacincon2010_2(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Departamento:</th>\
+                        <td>' + (feature.properties['dept-juris'] !== null ? autolinker.link(feature.properties['dept-juris'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Variación con 2010:</th>\
+                        <td>' + (feature.properties['Variación porciento'] !== null ? autolinker.link(feature.properties['Variación porciento'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Variacincon2010_2_0(feature) {
+            if (feature.properties['Variación con 2010'] >= -60.900000 && feature.properties['Variación con 2010'] <= 0.000000 ) {
+                return {
+                pane: 'pane_Variacincon2010_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(109,152,193,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Variación con 2010'] >= 0.000000 && feature.properties['Variación con 2010'] <= 14.400000 ) {
+                return {
+                pane: 'pane_Variacincon2010_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(139,195,74,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Variación con 2010'] >= 14.400000 && feature.properties['Variación con 2010'] <= 68.400000 ) {
+                return {
+                pane: 'pane_Variacincon2010_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(228,95,40,1.0)',
+                interactive: true,
+            }
+            }
+        }
+        map.createPane('pane_Variacincon2010_2');
+        map.getPane('pane_Variacincon2010_2').style.zIndex = 402;
+        map.getPane('pane_Variacincon2010_2').style['mix-blend-mode'] = 'normal';
+        var layer_Variacincon2010_2 = new L.geoJson(json_Variacincon2010_2, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Variacincon2010_2',
+            layerName: 'layer_Variacincon2010_2',
+            pane: 'pane_Variacincon2010_2',
+            onEachFeature: pop_Variacincon2010_2,
+            style: style_Variacincon2010_2_0,
+        });
+        bounds_group.addLayer(layer_Variacincon2010_2);
+        function pop_LmiteInterprovincial_3(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(feature.properties['fid'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['id'] !== null ? autolinker.link(feature.properties['id'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['cpr'] !== null ? autolinker.link(feature.properties['cpr'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['fna'] !== null ? autolinker.link(feature.properties['fna'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['gna'] !== null ? autolinker.link(feature.properties['gna'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['nam'] !== null ? autolinker.link(feature.properties['nam'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['sag'] !== null ? autolinker.link(feature.properties['sag'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_LmiteInterprovincial_3_0() {
+            return {
+                pane: 'pane_LmiteInterprovincial_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0, 
+                fillOpacity: 0,
+                interactive: false,
+            }
+        }
+        map.createPane('pane_LmiteInterprovincial_3');
+        map.getPane('pane_LmiteInterprovincial_3').style.zIndex = 403;
+        map.getPane('pane_LmiteInterprovincial_3').style['mix-blend-mode'] = 'normal';
+        var layer_LmiteInterprovincial_3 = new L.geoJson(json_LmiteInterprovincial_3, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_LmiteInterprovincial_3',
+            layerName: 'layer_LmiteInterprovincial_3',
+            pane: 'pane_LmiteInterprovincial_3',
+            onEachFeature: pop_LmiteInterprovincial_3,
+            style: style_LmiteInterprovincial_3_0,
+        });
+        bounds_group.addLayer(layer_LmiteInterprovincial_3);
+        map.addLayer(layer_LmiteInterprovincial_3);
+        var overlaysTree = [
+            {label: '<img src="legend/LmiteInterprovincial_3.png" /> Límite Interprovincial', layer: layer_LmiteInterprovincial_3},
+            {label: 'Variación con 2010<br /><table><tr><td style="text-align: center;"><img src="legend/Variacincon2010_2_Menora00.png" /></td><td>Menor a 0</td></tr><tr><td style="text-align: center;"><img src="legend/Variacincon2010_2_0a1441.png" /></td><td>0 a 14.4%</td></tr><tr><td style="text-align: center;"><img src="legend/Variacincon2010_2_Mayora1442.png" /></td><td>Mayor a 14.4%</td></tr></table>', layer: layer_Variacincon2010_2},
+            {label: 'Densidad hab/km2 <br /><table><tr><td style="text-align: center;"><img src="legend/Densidadhabkm2_1_0150.png" /></td><td>0 - 1.5</td></tr><tr><td style="text-align: center;"><img src="legend/Densidadhabkm2_1_15401.png" /></td><td>1.5 - 4.0</td></tr><tr><td style="text-align: center;"><img src="legend/Densidadhabkm2_1_401002.png" /></td><td>4.0 - 10.0</td></tr><tr><td style="text-align: center;"><img src="legend/Densidadhabkm2_1_1002003.png" /></td><td>10.0 - 20.0</td></tr><tr><td style="text-align: center;"><img src="legend/Densidadhabkm2_1_20010004.png" /></td><td>20.0 - 100.0</td></tr><tr><td style="text-align: center;"><img src="legend/Densidadhabkm2_1_10003066255.png" /></td><td>100.0 - 30662.5</td></tr></table>', layer: layer_Densidadhabkm2_1},
+            {label: "Dark Matter [no labels]", layer: layer_DarkMatternolabels_0, radioGroup: 'bm' },]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: false, 
+        });
+        lay.addTo(map);
+		document.addEventListener("DOMContentLoaded", function() {
+            // set new Layers List height which considers toggle icon
+            function newLayersListHeight() {
+                var layerScrollbarElement = document.querySelector('.leaflet-control-layers-scrollbar');
+                if (layerScrollbarElement) {
+                    var layersListElement = document.querySelector('.leaflet-control-layers-list');
+                    var originalHeight = layersListElement.style.height 
+                        || window.getComputedStyle(layersListElement).height;
+                    var newHeight = parseFloat(originalHeight) - 50;
+                    layersListElement.style.height = newHeight + 'px';
+                }
+            }
+            var isLayersListExpanded = true;
+            var controlLayersElement = document.querySelector('.leaflet-control-layers');
+            var toggleLayerControl = document.querySelector('.leaflet-control-layers-toggle');
+            // toggle Collapsed/Expanded and apply new Layers List height
+            toggleLayerControl.addEventListener('click', function() {
+                if (isLayersListExpanded) {
+                    controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+                } else {
+                    controlLayersElement.classList.add('leaflet-control-layers-expanded');
+                }
+                isLayersListExpanded = !isLayersListExpanded;
+                newLayersListHeight()
+            });	
+			// apply new Layers List height if toggle layerstree
+			if (controlLayersElement) {
+				controlLayersElement.addEventListener('click', function(event) {
+					var toggleLayerHeaderPointer = event.target.closest('.leaflet-layerstree-header-pointer span');
+					if (toggleLayerHeaderPointer) {
+						newLayersListHeight();
+					}
+				});
+			}
+            // Collapsed/Expanded at Start to apply new height
+            setTimeout(function() {
+                toggleLayerControl.click();
+            }, 10);
+            setTimeout(function() {
+                toggleLayerControl.click();
+            }, 10);
+            // Collapsed touch/small screen
+            var isSmallScreen = window.innerWidth < 650;
+            if (isSmallScreen) {
+                setTimeout(function() {
+                    controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+                    isLayersListExpanded = !isLayersListExpanded;
+                }, 500);
+            }  
+        });       
+        setBounds();
+        map.addControl(new L.Control.Search({
+            layer: layer_Densidadhabkm2_1,
+            initial: false,
+            hideMarkerOnCollapse: true,
+            propertyName: 'dept-juris'}));
+        document.getElementsByClassName('search-button')[0].className +=
+         ' fa fa-binoculars';
+        var mapDiv = document.getElementById('map');
+        var row = document.createElement('div');
+        row.className="row";
+        row.id="all";
+        row.style.height = "100%";
+        var col1 = document.createElement('div');
+        col1.className="col9";
+        col1.id = "mapWindow";
+        col1.style.height = "99%";
+        col1.style.width = "80%";
+        col1.style.display = "inline-block";
+        var col2 = document.createElement('div');
+        col2.className="col3";
+        col2.id = "menu";
+        col2.style.display = "inline-block";
+        mapDiv.parentNode.insertBefore(row, mapDiv);
+        document.getElementById("all").appendChild(col1);
+        document.getElementById("all").appendChild(col2);
+        col1.appendChild(mapDiv)
+        var Filters = {"Densidad hab/km2": "real","Variación con 2010": "real"};
+        function filterFunc() {
+          map.eachLayer(function(lyr){
+          if ("options" in lyr && "dataVar" in lyr["options"]){
+            features = this[lyr["options"]["dataVar"]].features.slice(0);
+            try{
+              for (key in Filters){
+                keyS = key.replace(/[^a-zA-Z0-9_]/g, "")
+                if (Filters[key] == "str" || Filters[key] == "bool"){
+                  var selection = [];
+                  var options = document.getElementById("sel_" + keyS).options
+                  for (var i=0; i < options.length; i++) {
+                    if (options[i].selected) selection.push(options[i].value);
+                  }
+                    try{
+                      if (key in features[0].properties){
+                        for (i = features.length - 1;
+                          i >= 0; --i){
+                          if (selection.indexOf(
+                          features[i].properties[key])<0
+                          && selection.length>0) {
+                          features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                  }
+                }
+                if (Filters[key] == "int"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (parseInt(features[i].properties[key])
+                          < sliderVals[0]
+                          || parseInt(features[i].properties[key])
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "real"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (features[i].properties[key]
+                          < sliderVals[0]
+                          || features[i].properties[key]
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "date"
+                  || Filters[key] == "datetime"
+                  || Filters[key] == "time"){
+                  try{
+                    if (key in features[0].properties){
+                      HTMLkey = key.replace(/[&\/\\#,+()$~%.'":*?<>{} ]/g, '');
+                      startdate = document.getElementById("dat_" +
+                        HTMLkey + "_date1").value.replace(" ", "T");
+                      enddate = document.getElementById("dat_" +
+                        HTMLkey + "_date2").value.replace(" ", "T");
+                      for (i = features.length - 1; i >= 0; --i){
+                        if (features[i].properties[key] < startdate
+                          || features[i].properties[key] > enddate){
+                          features.splice(i,1);
+                        }
+                      }
+                    }
+                  } catch(err){
+                  }
+                }
+              }
+            } catch(err){
+            }
+          this[lyr["options"]["layerName"]].clearLayers();
+          this[lyr["options"]["layerName"]].addData(features);
+          }
+          })
+        }
+            // Comienza slider
+			document.getElementById("menu").appendChild(document.createElement("div"));
+
+			var div_Densidadhabkm2 = document.createElement("div");
+			div_Densidadhabkm2.id = "div_Densidadhabkm2";
+			div_Densidadhabkm2.className = "slider";
+			document.getElementById("menu").appendChild(div_Densidadhabkm2);
+
+			var lab_Densidadhabkm2 = document.createElement('div');
+			lab_Densidadhabkm2.innerHTML = 'Densidad hab/km2: <span id="val_Densidadhabkm2"></span>';
+			lab_Densidadhabkm2.className = 'filterlabel';
+			document.getElementById("menu").appendChild(lab_Densidadhabkm2);
+
+			var reset_Densidadhabkm2 = document.createElement('div');
+			reset_Densidadhabkm2.innerHTML = 'Resetear filtro';
+			reset_Densidadhabkm2.className = 'filterlabel';
+			reset_Densidadhabkm2.onclick = function() {
+			  sel_Densidadhabkm2.noUiSlider.reset();
+			};
+			document.getElementById("menu").appendChild(reset_Densidadhabkm2);
+
+			var sel_Densidadhabkm2 = document.getElementById('div_Densidadhabkm2');
+
+			noUiSlider.create(sel_Densidadhabkm2, {
+			  connect: true,
+			  start: [0, 30662.5],
+			  range: {
+				min: 0,
+				'25%': 10,
+				'50%': 100,
+				'75%': 1000,
+				max: 30662.5
+			  },
+			  step: 0.01
+			});
+
+			var inputMin = document.createElement('input');
+			inputMin.type = 'number';
+			inputMin.id = 'inputMinDensidad';
+			inputMin.value = 0; 
+			inputMin.className = 'manual-input';
+
+			var inputMax = document.createElement('input');
+			inputMax.type = 'number';
+			inputMax.id = 'inputMaxDensidad';
+			inputMax.value = 30662.5; 
+			inputMax.className = 'manual-input';
+
+			document.getElementById("menu").appendChild(inputMin);
+			document.getElementById("menu").appendChild(inputMax);
+
+			sel_Densidadhabkm2.noUiSlider.on('update', function(values) {
+			  var val_Densidadhabkm2 = document.getElementById('val_Densidadhabkm2');
+			  val_Densidadhabkm2.innerHTML = values.map(val => parseFloat(val).toFixed(2)).join(' - ');
+
+			  inputMin.value = parseFloat(values[0]).toFixed(2);
+			  inputMax.value = parseFloat(values[1]).toFixed(2);
+			  filterFunc(); 
+			});
+
+			inputMin.addEventListener('change', function() {
+			  var minValue = parseFloat(inputMin.value);
+			  var currentValues = sel_Densidadhabkm2.noUiSlider.get();
+			  sel_Densidadhabkm2.noUiSlider.set([minValue, currentValues[1]]);
+			  filterFunc(); 
+			});
+
+			inputMax.addEventListener('change', function() {
+			  var maxValue = parseFloat(inputMax.value);
+			  var currentValues = sel_Densidadhabkm2.noUiSlider.get();
+			  sel_Densidadhabkm2.noUiSlider.set([currentValues[0], maxValue]);
+			  filterFunc(); 
+			});
+
+			document.getElementById("menu").appendChild(document.createElement("div"));
+
+			var div_Variacincon2010 = document.createElement("div");
+			div_Variacincon2010.id = "div_Variacincon2010";
+			div_Variacincon2010.className = "slider";
+			document.getElementById("menu").appendChild(div_Variacincon2010);
+
+			var lab_Variacincon2010 = document.createElement('div');
+			lab_Variacincon2010.innerHTML  = 'Variación con 2010: <span id="val_Variacincon2010"></span>';
+			lab_Variacincon2010.className = 'filterlabel';
+			document.getElementById("menu").appendChild(lab_Variacincon2010);
+
+			var reset_Variacincon2010 = document.createElement('div');
+			reset_Variacincon2010.innerHTML = 'Resetear filtro';
+			reset_Variacincon2010.className = 'filterlabel';
+			reset_Variacincon2010.onclick = function() {
+			  sel_Variacincon2010.noUiSlider.reset();
+			};
+			document.getElementById("menu").appendChild(reset_Variacincon2010);
+
+			var sel_Variacincon2010 = document.getElementById('div_Variacincon2010');
+
+			noUiSlider.create(sel_Variacincon2010, {
+			  connect: true,
+			  start: [-60.9, 68.4],
+			  range: {
+				min: -60.9,
+				max: 68.4
+			  }
+			});
+
+			var inputMinVar = document.createElement('input');
+			inputMinVar.type = 'number';
+			inputMinVar.id = 'inputMinVariacion';
+			inputMinVar.value = -60.9; 
+			inputMinVar.className = 'manual-input';
+
+			var inputMaxVar = document.createElement('input');
+			inputMaxVar.type = 'number';
+			inputMaxVar.id = 'inputMaxVariacion';
+			inputMaxVar.value = 68.4; 
+			inputMaxVar.className = 'manual-input';
+
+			document.getElementById("menu").appendChild(inputMinVar);
+			document.getElementById("menu").appendChild(inputMaxVar);
+
+			sel_Variacincon2010.noUiSlider.on('update', function(values) {
+			  var val_Variacincon2010 = document.getElementById('val_Variacincon2010');
+			  val_Variacincon2010.innerHTML = values.join(' - ');
+
+			  inputMinVar.value = parseFloat(values[0]).toFixed(1);
+			  inputMaxVar.value = parseFloat(values[1]).toFixed(1);
+			  filterFunc(); 
+			});
+
+			inputMinVar.addEventListener('change', function() {
+			  var minValue = parseFloat(inputMinVar.value);
+			  var currentValues = sel_Variacincon2010.noUiSlider.get();
+			  sel_Variacincon2010.noUiSlider.set([minValue, currentValues[1]]);
+			  filterFunc(); 
+			});
+
+			inputMaxVar.addEventListener('change', function() {
+			  var maxValue = parseFloat(inputMaxVar.value);
+			  var currentValues = sel_Variacincon2010.noUiSlider.get();
+			  sel_Variacincon2010.noUiSlider.set([currentValues[0], maxValue]);
+			  filterFunc(); 
+			});
+			
+
+			var style = document.createElement('style');
+			style.innerHTML = `
+			  
+			  #div_Variacincon2010, #div_Densidadhabkm2 {
+				width: 80%;
+				max-width: 500px;
+				height: 8px;
+				margin: 20px auto;
+				box-sizing: border-box;
+			  }
+			  
+			.filterlabel {
+			  margin-left: 20px; 
+			}
+		
+			  .noUi-connect {
+				background: linear-gradient(to right, #ffffb2, #fecc5c, #fd8d3c, #e31a1c);
+				height: 8px; 
+				border-radius: 0px; 
+			  }
+
+			  .noUi-handle {
+				width: 18px !important; 
+				height: 18px !important; 
+				background: #fff;
+				border: 2px solid #fd8d3c;
+				border-radius: 50%; 
+				top: -4px; 
+			  }
+			  
+			  .manual-input {
+				width: 100px;
+				padding: 6px; 
+				border: 2px solid #fd8d3c;
+				border-radius: 5px;
+				font-size: 12px; 
+				margin: 5px 10px 0 10px;
+				transition: border-color 0.3s ease;
+			  }
+
+			  .manual-input:focus {
+				border-color: #e31a1c;
+				outline: none;
+			  }
+
+			  #div_Variacincon2010 {
+				margin-top: 50px; 
+			  }
+			`;
+
+			document.head.appendChild(style);
+        </script>
+    </body>
+</html>
