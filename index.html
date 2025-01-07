@@ -93,20 +93,14 @@
             this._div = L.DomUtil.create('div',
             'leaflet-control abstract');
             this._div.id = 'abstract'
-                this._div.setAttribute("onmouseenter", "abstract.show()");
-                this._div.setAttribute("onmouseleave", "abstract.hide()");
-                this.hide();
+
+                abstract.show();
                 return this._div;
             };
-            abstract.hide = function () {
-                this._div.classList.remove("abstractUncollapsed");
-                this._div.classList.add("abstract");
-                this._div.innerHTML = 'i'
-            }
             abstract.show = function () {
                 this._div.classList.remove("abstract");
                 this._div.classList.add("abstractUncollapsed");
-                this._div.innerHTML = 'Este proyecto ha sido desarrollado utilizando datos obtenidos del INDEC y el Geoportal Estadístico del INDEC, bajo la licencia Creative Commons.<br />Nota sobre la capa "Variación con 2010":<br />La fuente de datos no incluye información sobre los partidos de Lezama ni sobre el departamento Tolhuin, que fue creado en 2017. Para el cálculo de la variación relativa, la población de Tolhuin se ha sumado a la de Río Grande.';
+                this._div.innerHTML = 'Realizado con datos obtenidos de Geoportal Estadístico INDEC, bajo licencia Creative Commons. Datos de carácter informativo, no aptos para uso técnico';
         };
         abstract.addTo(map);
         var zoomControl = L.control.zoom({
